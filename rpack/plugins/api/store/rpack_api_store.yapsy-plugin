@@ -1,0 +1,8 @@
+[Core]
+Name = rpack_api
+Module = __init__
+[Documentation]
+Author = Paul C. Peacock
+Version = 0.0.1
+Website = https://github.com/pcp1976
+Description = Api module, contains hookspecs

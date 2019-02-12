@@ -12,6 +12,7 @@ pyredux = "*"
 pluggy = "*"
 loguru = "*"
 python-dotenv = "*"
+yapsy = "*"
 
 [requires]
 python_version = "3.7"

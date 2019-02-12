@@ -1,37 +1,18 @@
-from api.plugin_manager import pm
-from pyredux import create_typed_action_creator
-from pyrsistent import pmap
-from pyredux.utils import compose
+from system import Composer
 from dotenv import load_dotenv
-import dotenv
+from dotenv import dotenv_values
 
 load_dotenv()
 
-reducer = pm.hook.get_config_reducer()[0]
 
-store = pm.hook.get_store()[0]
-print(store.state)
+def main():
+    composer = Composer()
+    composer.collect_plugins()
+    composer.activate_plugins()
 
-Boop, creator_func = create_typed_action_creator("Boop")
-boop = compose(store.dispatch, creator_func)
-
-
-@reducer.register(Boop)
-def _(action, state):
-    def str2bool(_v):
-        if _v.lower() in ("yes", "y", "true", "t", "1"):
-            return True
-        elif _v.lower() in ("no", "n", "false", "f", "0"):
-            return False
-        else:
-            return _v
-
-    new_state = pmap(
-        state.update({key: str2bool(value) for key, value in dotenv.dotenv_values().items()})
-    )
-    return new_state
+    composer.pm.hook.config_update(conf={"env": dotenv_values()})
+    print(composer.pm.hook.get_store().state)
 
 
-boop(True)
-for k, v in store.state["config"].items():
-    print(f"u can haz {k}") if v else print(f"no haz u {k}")
+if __name__ == "__main__":
+    main()
