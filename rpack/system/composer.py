@@ -21,8 +21,8 @@ class Composer:
             plugin.pm = self.pm
             try:
                 self.pm.add_hookspecs(plugin)
-            except ValueError as e:
-                print(e)
+            except ValueError:
+                pass  # plugins may have no specs
             self.pm.register(plugin)
 
         # TODO improve this naive implementation

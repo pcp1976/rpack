@@ -10,7 +10,8 @@ def main():
     composer.collect_plugins()
     composer.activate_plugins()
 
-    composer.pm.hook.config_update(conf={"env": dotenv_values()})
+    # quick test funcs
+    composer.pm.hook.config_update(conf={"dotenv": dotenv_values()})
     print(composer.pm.hook.get_store().state)
 
 

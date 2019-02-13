@@ -1,7 +1,11 @@
-from pyredux import create_store, apply_middleware, middleware
+from pyredux import (
+    create_store,
+    apply_middleware,
+    middleware,
+    create_action_type,
+    combine_reducer,
+)
 from pluggy import HookimplMarker
-from pyrsistent import pmap
-from functools import singledispatch
 from pyredux.store import Store
 from yapsy.IPlugin import IPlugin
 from pluggy import PluginManager
@@ -9,35 +13,39 @@ from pluggy import PluginManager
 impl = HookimplMarker("rpack")
 
 
-@singledispatch
-def default(action, state=pmap({})):
-    return state
-
-
 class StoreBuilder(IPlugin):
     def __init__(self):
         super().__init__()
         self.pm: PluginManager = None
         self.the_store: Store = None
+        self.Event = create_action_type("Event")
 
     def activate(self):
-        @middleware
-        def middleware_decorated(store: Store, next_middleware, action):
-            self.pm.hook.middleware_hook(store=store, action=action)
-            return next_middleware(action)
 
-        self.the_store = create_store(
-            default, enhancer=apply_middleware(middleware_decorated)
-        )
+        middlewares = tuple(self.pm.hook.get_middleware())
+        if middlewares:
+            self.the_store = create_store(
+                combine_reducer(self.pm.hook.get_reducer()),
+                enhancer=apply_middleware(*middlewares),
+            )
+        else:
+            self.the_store = create_store(combine_reducer(self.pm.hook.get_reducer()))
 
-    @impl
-    def get_reducer(self):
-        return default
+        for sub in self.pm.hook.subscribe():
+            self.the_store.subscribe(sub)
 
     @impl
     def get_store(self):
         return self.the_store
 
     @impl
-    def middleware_hook(self, store, action):
-        print(action.type)
+    def raise_event(self, type, payload):
+        self.the_store.dispatch(self.Event(type=type, payload=payload))
+
+    @impl
+    def unsubscribe(self, callback):
+        """
+        :param callback:
+        :return:
+        """
+        self.the_store.unsubscribe(callback)

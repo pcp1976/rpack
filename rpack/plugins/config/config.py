@@ -1,5 +1,4 @@
 """
-To receive an update when config changes, apply middleware which listens for action.type == CONFIG_UPDATED events.
 Config appears as a dict in the store, under the config key:
 
     {"config":
@@ -16,13 +15,20 @@ Updates to config can be made via the hook:
 
 
 from pluggy import PluginManager, HookimplMarker
-from pyredux import create_typed_action_creator, create_action_type
+from pyredux import create_typed_action_creator, default_reducer
 from pyredux.store import Store
-from pyrsistent import pmap
+from pyrsistent import pmap, plist
 from pyredux.utils import compose
 from yapsy.IPlugin import IPlugin
+from functools import singledispatch
+import os
 
 impl = HookimplMarker("rpack")
+
+
+@default_reducer
+def config(action, state=pmap({})):
+    return state
 
 
 class Config(IPlugin):
@@ -38,49 +44,60 @@ class Config(IPlugin):
     @impl
     def config_update(self, conf: dict):
         self._config_update(conf)
-        event = self.Event(type="CONFIG_UPDATED")
-        self.store.dispatch(event)
-        self.reducer = None
+        if "directory_change" in self.store.state["config"].keys():
+            self.pm.hook.raise_event(
+                type="ConfigDirectoryUpdated",
+                payload=self.store.state["config"]["directory_change"],
+            )
+            self.pm.hook.config_update(conf={})
+
+    @impl
+    def get_reducer(self):
+        return config
 
     def activate(self):
-        self.reducer = self.pm.hook.get_reducer()
         self.store = self.pm.hook.get_store()
 
         UpdateConfig, creator_func = create_typed_action_creator("UpdateConfig")
         self._config_update = compose(self.store.dispatch, creator_func)
 
-        self.Event = create_action_type("Event")
-
-        @self.reducer.register(UpdateConfig)
+        @config.register(UpdateConfig)
         def _(action, state):
-            # TODO refactor this mess!
-            def parse_val(_v):
-                if isinstance(_v, dict):
-                    for k, v in _v.items():
-                        _v[k] = parse_val(v)
-                    return _v
-                elif isinstance(_v, list):
-                    new_list = [parse_val(x) for x in _v]
-                    return new_list
-                else:
-                    if _v.lower() in ("yes", "y", "true", "t"):
-                        return True
-                    elif _v.lower() in ("no", "n", "false", "f"):
-                        return False
-                    else:
-                        try:
-                            return int(_v)
-                        except:
-                            return _v
+            files = []
 
+            @singledispatch
+            def sorting_hat(value: str):
+                if value.find(":cwd:") > -1:
+                    val = value.replace(":cwd:", f"{os.getcwd()}{os.path.sep}")
+                    files.append(val)
+                    return val.replace("/", os.path.sep)
+                elif value.lower() in ("yes", "y", "true", "t"):
+                    return True
+                elif value.lower() in ("no", "n", "false", "f"):
+                    return False
+                else:
+                    try:
+                        return int(value)
+                    except:
+                        return value
+
+            @sorting_hat.register(dict)
+            def _(value: dict):
+                return pmap({k: sorting_hat(v) for k, v in value.items()})
+
+            @sorting_hat.register(list)
+            def _(value: list):
+                return plist([sorting_hat(x) for x in value])
+
+            old_state = state
             new_state = pmap(
                 state.update(
-                    {
-                        "config": {
-                            key: parse_val(value)
-                            for key, value in action.payload.items()
-                        }
-                    }
+                    {key: sorting_hat(value) for key, value in action.payload.items()}
                 )
             )
+            if old_state != new_state:
+                if files:
+                    new_state = pmap(new_state.update({"directory_change": files}))
+            else:
+                new_state = pmap(new_state.remove("directory_change"))
             return new_state

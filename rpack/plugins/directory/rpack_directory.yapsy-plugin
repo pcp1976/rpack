@@ -1,0 +1,8 @@
+[Core]
+Name = rpack_directory
+Module = __init__
+[Documentation]
+Author = Paul C. Peacock
+Version = 0.0.1
+Website = https://github.com/pcp1976
+Description = Directory manager

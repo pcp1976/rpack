@@ -7,14 +7,6 @@ spec = HookspecMarker("rpack")
 
 class StoreSpec(IPlugin):
     @spec(firstresult=True)
-    def get_reducer(self):
-        """
-        Returns @singledispatch function - decorate reducers with @reducer.register(EventType)
-        :return: function
-        """
-        pass
-
-    @spec(firstresult=True)
     def get_store(self):
         """
         The single redux store
@@ -23,11 +15,38 @@ class StoreSpec(IPlugin):
         pass
 
     @spec
-    def middleware_hook(self, store: Store, action):
+    def get_middleware(self):
         """
-        All middleware hooks are called whenever an event is raised on the store
-        :param store:
+        :return:  Middleware-decorated function
+        """
+        pass
+
+    @spec
+    def get_reducer(self):
+        """
+        :return: the default reducer for a store
+        """
+
+    @spec
+    def raise_event(self, type, payload):
+        """
         :param action:
+        :param payload:
+        :return:
+        """
+        pass
+
+    @spec
+    def subscribe(self):
+        """
+        :return: callback
+        """
+        pass
+
+    @spec
+    def unsubscribe(self, callback):
+        """
+        :param callback:
         :return:
         """
         pass
