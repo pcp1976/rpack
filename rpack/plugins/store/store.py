@@ -21,8 +21,17 @@ class StoreBuilder(IPlugin):
         self.Event = create_action_type("Event")
 
     def activate(self):
+        def unpack(*args, newlist=None):
+            if newlist is None:
+                newlist = []
+            for item in args:
+                if isinstance(item, list):
+                    unpack(*item, newlist=newlist)
+                else:
+                    newlist.append(item)
+            return tuple(newlist)
 
-        middlewares = tuple(self.pm.hook.get_middleware())
+        middlewares = unpack(self.pm.hook.get_middleware())
         if middlewares:
             self.the_store = create_store(
                 combine_reducer(self.pm.hook.get_reducer()),
